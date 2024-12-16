@@ -1,0 +1,4 @@
+encrypt        = true
+bucket         = "itgix-dev-ec1-terraform-state-backend" # s3 bucket to store state
+key            = "application/tf-tui.tfstate"
+region         = "eu-central-1"

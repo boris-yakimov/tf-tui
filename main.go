@@ -21,11 +21,14 @@ func (m model) Init() tea.Cmd {
 	// TODO: make sure we are in the right directory of the lz project
 	// TODO: render ascii logo
 	// TODO: provide options for plan
-	return tfInit()
+	tfBackendPath := "backends/dev.tfbackend"
+	return tfInit(tfBackendPath)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+
+	// TODO: add an option to trigger a plan or apply
 
 	case commandOutputMsg:
 		m.output = msg.output
@@ -62,24 +65,53 @@ type commandOutputMsg struct {
 	err    error
 }
 
-func tfInit() tea.Cmd {
+func tfInit(backendPath string) tea.Cmd {
+	// TODO: error if no file exists on path
 	return func() tea.Msg {
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
 
 		tf := "terraform"
-		arg1 := "init"
+		tf_cmd := "init"
+		tf_backend := fmt.Sprintf("--backend-config=%s", backendPath) //
 
-		// TODO: add additional backend path once tested
-		// arg2 := fmt.Sprintf("--backend-config=%s", backendPath) // backends/dev.tfbackend
-
-		cmd := exec.Command(tf, arg1) // run in separate shell
+		cmd := exec.Command(tf, tf_cmd, tf_backend) // run in separate shell
 		// cmd := exec.Command("ls", "-lah") // run in separate shell
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 
 		// TODO: add disclaimer for which environemnt - red if mgmt or prod
 		fmt.Printf("Running Terraform Init... \n\n")
+		err := cmd.Run()
+
+		return commandOutputMsg{
+			output: stdout.String() + stderr.String(),
+			err:    err,
+		}
+	}
+}
+
+func tfAction(tfAction string, varFilePath string) tea.Cmd {
+	if tfAction != "plan" && tfAction != "apply" {
+		// TODO: handle this as an error
+		fmt.Println("Invalid Terraform action, should be plan or apply")
+	}
+
+	return func() tea.Msg {
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		tf := "terraform"
+		tf_cmd := tfAction
+		tf_vars := fmt.Sprintf("-var-file=%s", varFilePath)
+
+		cmd := exec.Command(tf, tf_cmd, tf_vars)
+		// cmd := exec.Command("ls", "-lah") // run in separate shell
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		// TODO: add disclaimer for which environemnt - red if mgmt or prod
+		fmt.Printf("Running Terraform tfAction ... \n\n")
 		err := cmd.Run()
 
 		return commandOutputMsg{

@@ -11,12 +11,17 @@ terraform {
 }
 
 provider "aws" {
-  region  = "eu-central-1"
+  region = "eu-central-1"
+}
+
+variable "instance_type" {
+  type        = string
+  description = "instance type for EC2"
 }
 
 resource "aws_instance" "app_server" {
   ami           = "ami-830c94e3"
-  instance_type = "t2.micro"
+  instance_type = var.instance_type
 
   tags = {
     Name = "ExampleAppServerInstance"
