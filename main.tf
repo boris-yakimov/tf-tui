@@ -1,3 +1,11 @@
+# terraform {
+#   backend "s3" {
+#     bucket  = ""
+#     key     = ""
+#     region  = ""
+#     profile = ""
+#   }
+# }
 
 terraform {
   required_providers {

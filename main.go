@@ -10,6 +10,7 @@ import (
 )
 
 // TODO: split the init, update and veiw parts into a separate package -- only do this once we have things working already !
+// TODO: how do we test that we are already logged in to the right account - maybe a simple s3 ls
 
 // TUI model
 type model struct {
@@ -52,11 +53,11 @@ func (m model) View() string {
 		return fmt.Sprintf("Error: %v\n\nPress 'q' to quit.", m.err)
 	}
 
-	if m.output == "" {
-		return "No output received from the command.\n\nPress 'q' to quit."
-	}
+	// if m.output == "" {
+	// 	return "No output received from the command.\n\nPress 'q' to quit."
+	// }
 
-	return fmt.Sprintf("Output: \n\n%s\n\nPress 'q' to quit.", m.output)
+	return fmt.Sprintf("waiting for command output \n\n%s\n\nPress 'q' to quit.", m.output)
 }
 
 // tf and AWS commands
@@ -73,10 +74,11 @@ func tfInit(backendPath string) tea.Cmd {
 
 		tf := "terraform"
 		tf_cmd := "init"
-		tf_backend := fmt.Sprintf("--backend-config=%s", backendPath) //
+		tf_backend := fmt.Sprintf("--backend-config=%s", backendPath)
 
-		cmd := exec.Command(tf, tf_cmd, tf_backend) // run in separate shell
-		// cmd := exec.Command("ls", "-lah") // run in separate shell
+		fmt.Printf("%s %s %s\n", tf, tf_cmd, tf_backend)
+
+		cmd := exec.Command(tf, tf_cmd, tf_backend)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 
