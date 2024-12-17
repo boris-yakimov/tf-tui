@@ -14,16 +14,19 @@ import (
 
 // TUI model
 type model struct {
-	output string // Stores the command output
-	err    error  // Stores any error that occurs
+	choices []string // stores choices that will appear in the menu of the TUI
+	cursor  int      // position where we are in the mnu
+
+	output string // stores the command output
+	err    error  // stores any error that occurs
 }
 
 func (m model) Init() tea.Cmd {
-	// TODO: make sure we are in the right directory of the lz project
-	// TODO: render ascii logo
-	// TODO: provide options for plan
-	tfBackendPath := "backends/dev.tfbackend"
-	return tfInit(tfBackendPath)
+	// TODO: make sure we are in the right directory of the lz project before doing anything
+	// TODO: render ascii logo - maybe this should be in view() ?
+	// tfBackendPath := "backends/dev.tfbackend"
+	// return tfInit(tfBackendPath)
+	return nil
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -39,10 +42,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// keep track of which key was pressed
 		switch msg.String() {
+
 		case "q", "ctrl+c":
 			return m, tea.Quit
+
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+
+		case "down", "j":
+			if m.cursor < len(m.choices)-1 {
+				m.cursor++
+			}
+
+		case "enter":
+			tfBackendPath := "backends/dev.tfbackend"
+			tfVarsPath := "vars/dev.tfvars"
+			// TODO: show full init output
+			// TODO: wait for init to finish
+			// TODO: only than proceed to plan
+			tfInit(tfBackendPath)
+			// TODO: show full output in trail mode as it appears on the screen
+			tfAction("plan", tfVarsPath)
+
+			// TODO:: how do we do this ?
+			// command := m.commands[m.cursor]
+			// return m, runShellCommand(command)
 		}
+
 	}
+
 	// return updated model to the Bubble Tea runtime for processing
 	return m, nil
 }
@@ -108,7 +138,6 @@ func tfAction(tfAction string, varFilePath string) tea.Cmd {
 		tf_vars := fmt.Sprintf("-var-file=%s", varFilePath)
 
 		cmd := exec.Command(tf, tf_cmd, tf_vars)
-		// cmd := exec.Command("ls", "-lah") // run in separate shell
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 
