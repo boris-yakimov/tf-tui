@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
+	"strings"
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -28,8 +31,6 @@ func (m model) Init() tea.Cmd {
 	// TODO: make sure we are in the right directory of the lz project before doing anything
 	// TODO: make sure we are logged in to aws account
 	// TODO: render ascii logo - maybe this should be in view() ?
-	// tfBackendPath := "backends/dev.tfbackend"
-	// return tfInit(tfBackendPath)
 	return nil
 }
 
@@ -92,18 +93,66 @@ func tfInit(backendPath string) tea.Cmd {
 		tf_cmd := "init"
 		tf_backend := fmt.Sprintf("--backend-config=%s", backendPath)
 
-		fmt.Printf("%s %s %s\n", tf, tf_cmd, tf_backend)
+		// fmt.Printf("%s %s %s\n", tf, tf_cmd, tf_backend)
 
 		cmd := exec.Command(tf, tf_cmd, tf_backend)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return fmt.Errorf("failed to get stdout pipe: %w", err)
+		}
+
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return fmt.Errorf("failed to get stderr pipe: %w", err)
+		}
+
+		if err := cmd.Start(); err != nil {
+			return errMsg(err)
+		}
+
+		// stream and process stdout
+		go func() {
+			var outputLines []string
+			scanner := bufio.NewScanner(stdout)
+			for scanner.Scan() {
+				raw := scanner.Text()
+				cleaned := cleanOutput(raw)
+
+				// Skip empty lines
+				if cleaned != "" {
+					outputLines = append(outputLines, cleaned)
+				}
+			}
+
+			finalOutput := strings.Join(outputLines, "\n")
+			fmt.Println(finalOutput)
+		}()
+
+		// stream and process stderr
+		go func() {
+			var outputLines []string
+			scanner := bufio.NewScanner(stderr)
+			for scanner.Scan() {
+				raw := scanner.Text()
+				cleaned := cleanOutput(raw)
+
+				// Skip empty lines
+				if cleaned != "" {
+					outputLines = append(outputLines, cleaned)
+				}
+			}
+
+			finalOutput := strings.Join(outputLines, "\n")
+			fmt.Println(finalOutput)
+		}()
+
 		// cmd.Stdout = &stdout
 		// cmd.Stderr = &stderr
 
 		// TODO: add disclaimer for which environemnt - red if mgmt or prod
 		fmt.Printf("%s %s %s ...", tf, tf_cmd, tf_backend)
-		err := cmd.Run()
-		if err != nil {
+		if err := cmd.Wait(); err != nil {
 			return errMsg(err)
 		}
 
@@ -125,34 +174,101 @@ func tfAction(tfAction string, varFilePath string, tfBackendPath string) tea.Cmd
 		tf_cmd := tfAction
 		tf_vars := fmt.Sprintf("-var-file=%s", varFilePath)
 
-		// TODO: why is this not getting executed
-		// init
+		// TODO: check if it may not be better to refactor this to use tea.Batch for better chaining of commands
 		var wg sync.WaitGroup
 		wg.Add(1)
 
 		go func() {
 			defer wg.Done()
-			tfInit(tfBackendPath)
+			initCmd := tfInit(tfBackendPath)
+			if initCmd != nil {
+				initCmd()
+			}
 		}()
 
 		wg.Wait() // wait for tf init to finish before running plan or apply
 
+		// TODO: add some tests to make sure that the init has completed successfully before moving forward
+
 		// plan or apply
 		cmd := exec.Command(tf, tf_cmd, tf_vars)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		// cmd.Stdout = os.Stdout
+		// cmd.Stderr = os.Stderr
+
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return fmt.Errorf("failed to get stdout pipe: %w", err)
+		}
+
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return fmt.Errorf("failed to get stderr pipe: %w", err)
+		}
+
 		// cmd.Stdout = &stdout
 		// cmd.Stderr = &stderr
 
 		// TODO: add disclaimer for which environemnt - red if mgmt or prod
-		fmt.Printf("%s %s %s ...", tf, tf_cmd, tf_vars)
-		err := cmd.Run()
-		if err != nil {
+		// fmt.Printf("%s %s %s ...", tf, tf_cmd, tf_vars)
+		if err := cmd.Start(); err != nil {
+			return errMsg(err)
+		}
+
+		// stream and process stdout
+		go func() {
+			scanner := bufio.NewScanner(stdout)
+			for scanner.Scan() {
+				raw := scanner.Text()
+				cleaned := cleanOutput(raw)
+
+				// Skip completely empty lines
+				if cleaned != "" {
+					fmt.Println(cleaned)
+				}
+			}
+		}()
+
+		// stream and process stderr
+		go func() {
+			scanner := bufio.NewScanner(stderr)
+			for scanner.Scan() {
+				raw := scanner.Text()
+				cleaned := cleanOutput(raw)
+
+				// Skip completely empty lines
+				if cleaned != "" {
+					fmt.Println(cleaned)
+				}
+			}
+		}()
+
+		if err := cmd.Wait(); err != nil {
 			return errMsg(err)
 		}
 
 		return doneMsg{}
 	}
+}
+
+// cleanOutput processes raw terminal output to remove unwanted artifacts.
+func cleanOutput(input string) string {
+	// Remove ANSI escape codes
+	ansiEscapePattern := `\x1b\[[0-9;]*[a-zA-Z]`
+	re := regexp.MustCompile(ansiEscapePattern)
+	cleaned := re.ReplaceAllString(input, "")
+
+	// Normalize multiple spaces/tabs into a single space
+	cleaned = regexp.MustCompile(`[ \t]+`).ReplaceAllString(cleaned, " ")
+
+	// Remove leading and trailing spaces
+	cleaned = strings.TrimSpace(cleaned)
+
+	// Remove empty lines
+	if cleaned == "" {
+		return ""
+	}
+
+	return cleaned
 }
 
 func main() {
