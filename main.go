@@ -132,7 +132,10 @@ func tfAction(tfAction string, varFilePath string, tfBackendPath string) tea.Cmd
 
 		go func() {
 			defer wg.Done()
-			tfInit(tfBackendPath)
+			initCmd := tfInit(tfBackendPath)
+                        if initCmd != nil {
+                               initCmd()
+                       }
 		}()
 
 		wg.Wait() // wait for tf init to finish before running plan or apply
