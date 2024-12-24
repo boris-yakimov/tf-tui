@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,9 +22,7 @@ type model struct {
 }
 
 type errMsg error
-
-// type doneMsg struct{}
-type outputMsg string
+type doneMsg struct{}
 
 func (m model) Init() tea.Cmd {
 	// TODO: make sure we are in the right directory of the lz project before doing anything
@@ -98,18 +95,19 @@ func tfInit(backendPath string) tea.Cmd {
 		fmt.Printf("%s %s %s\n", tf, tf_cmd, tf_backend)
 
 		cmd := exec.Command(tf, tf_cmd, tf_backend)
-		var out bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &out
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		// cmd.Stdout = &stdout
+		// cmd.Stderr = &stderr
 
 		// TODO: add disclaimer for which environemnt - red if mgmt or prod
 		fmt.Printf("%s %s %s ...", tf, tf_cmd, tf_backend)
-		if err := cmd.Run(); err != nil {
+		err := cmd.Run()
+		if err != nil {
 			return errMsg(err)
 		}
 
-		// return doneMsg{}
-		return outputMsg(out.String())
+		return doneMsg{}
 	}
 }
 
@@ -135,18 +133,19 @@ func tfAction(tfAction string, varFilePath string, tfBackendPath string) tea.Cmd
 		go func() {
 			defer wg.Done()
 			initCmd := tfInit(tfBackendPath)
-			if initCmd != nil {
-				initCmd()
-			}
+                        if initCmd != nil {
+                               initCmd()
+                       }
 		}()
 
 		wg.Wait() // wait for tf init to finish before running plan or apply
 
 		// plan or apply
 		cmd := exec.Command(tf, tf_cmd, tf_vars)
-		var out bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &out
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		// cmd.Stdout = &stdout
+		// cmd.Stderr = &stderr
 
 		// TODO: add disclaimer for which environemnt - red if mgmt or prod
 		fmt.Printf("%s %s %s ...", tf, tf_cmd, tf_vars)
@@ -155,8 +154,7 @@ func tfAction(tfAction string, varFilePath string, tfBackendPath string) tea.Cmd
 			return errMsg(err)
 		}
 
-		// return doneMsg{}
-		return outputMsg(out.String())
+		return doneMsg{}
 	}
 }
 
