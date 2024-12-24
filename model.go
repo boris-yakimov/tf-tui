@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -10,6 +11,8 @@ import (
 type Model struct {
 	choices []string // stores choices that will appear in the menu
 	cursor  int      // position where we are in the menu
+
+	envs list.Model
 
 	// terminal dimentions
 	width  int
@@ -23,6 +26,17 @@ type Model struct {
 func (m *Model) updateTerminalDimentions(width, height int) {
 	m.width = width
 	m.height = height
+}
+
+// TODO: this should be updated to use tea.WindowSizeMsg
+func (m *Model) initEnvironments(width, height int) {
+	m.envs = list.New([]list.Item{}, list.NewDefaultDelegate(), width, height)
+	m.envs.Title = "Landing Zone Environments"
+	m.envs.SetItems([]list.Item{
+		Environment{name: "development", shortName: "dev", description: "app accounts - dev account"},
+		Environment{name: "staging", shortName: "stage", description: "app accounts - stage account"},
+		Environment{name: "production", shortName: "prod", description: "app accounts - prod account"},
+	})
 }
 
 func (m Model) Init() tea.Cmd {
