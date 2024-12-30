@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -41,7 +40,7 @@ func tfInit(backendPath string) tea.Cmd {
 	}
 }
 
-func tfAction(tfAction string, varFilePath string, tfBackendPath string) tea.Cmd {
+func tfAction(tfAction string, varFilePath string) tea.Cmd {
 	if tfAction != "plan" && tfAction != "apply" {
 		// TODO: handle this as an error
 		fmt.Println("Invalid Terraform action, should be plan or apply")
@@ -57,18 +56,18 @@ func tfAction(tfAction string, varFilePath string, tfBackendPath string) tea.Cmd
 
 		// TODO: why is this not getting executed
 		// init
-		var wg sync.WaitGroup
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			initCmd := tfInit(tfBackendPath)
-			if initCmd != nil {
-				initCmd()
-			}
-		}()
-
-		wg.Wait() // wait for tf init to finish before running plan or apply
+		// var wg sync.WaitGroup
+		// wg.Add(1)
+		//
+		// go func() {
+		// 	defer wg.Done()
+		// 	initCmd := tfInit(tfBackendPath)
+		// 	if initCmd != nil {
+		// 		initCmd()
+		// 	}
+		// }()
+		//
+		// wg.Wait() // wait for tf init to finish before running plan or apply
 
 		// plan or apply
 		cmd := exec.Command(tf, tf_cmd, tf_vars)

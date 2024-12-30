@@ -80,7 +80,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// TODO: only than proceed to plan
 			// TODO: show full output in trail mode as it appears on the screen
 
-			return m, (tfAction("plan", tfVarsPath, tfBackendPath))
+			// run init and than plan or apply
+			return m, tea.Sequence(tfInit(tfBackendPath), tfAction("plan", tfVarsPath))
 		}
 	}
 
